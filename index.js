@@ -67,10 +67,25 @@ async function run() {
     //Get all jobs data from db for pagination
     app.get("/all-foods", async (req, res) => {
       const size = parseInt(req.query.size);
-      const page = parseInt(req.query.page)-1;
+      const page = parseInt(req.query.page) - 1;
+      const filter = req.query.filter;
+      const sort = req.query.sort;
+      const search = req.query.search;
       console.log(page, size);
+
+
+      let query = {
+        food_name: { $regex: search, $options: 'i'},
+      };
+
+      // if (filter) query = { food_category: filter };
+      if (filter) query.food_category =  filter;
+
+      let options = {};
+      if (sort) options = { sort: { price: sort === "asc" ? 1 : -1 } };
+
       const result = await foodsCollection
-        .find()
+        .find(query, options)
         .skip(page * size)
         .limit(size)
         .toArray();
@@ -78,9 +93,21 @@ async function run() {
       res.send(result);
     });
 
+
+
     //Get all jobs data count from db
     app.get("/foods-count", async (req, res) => {
-      const count = await foodsCollection.countDocuments();
+      const filter = req.query.filter;
+      const search = req.query.search;
+       let query = {
+        food_name: { $regex: search, $options: 'i'},
+      };
+      
+      // if (filter) query = { food_category: filter };
+      if (filter) query.food_category =  filter;
+
+
+      const count = await foodsCollection.countDocuments(query);
 
       res.send({ count });
     });
