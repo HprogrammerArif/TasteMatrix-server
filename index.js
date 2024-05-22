@@ -10,8 +10,9 @@ const app = express();
 const corsOptions = {
   origin: [
     "http://localhost:5173",
-    "https://tastematrix.web.app", 
-  "https://tastematrix.firebaseapp.com"],
+    // "https://tastematrix.web.app",
+    // "https://tastematrix.firebaseapp.com",
+  ],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -32,17 +33,13 @@ const client = new MongoClient(uri, {
   },
 });
 
-
-
 const cookieOptions = {
   httpOnly: true,
   sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-  secure: process.env.NODE_ENV === "production"? true: false,
+  secure: process.env.NODE_ENV === "production" ? true : false,
 };
 //localhost:5000 and localhost:5173 are treated as same site.  so sameSite value must be strict in development server.  in production sameSite will be none
 // in development server secure will false .  in production secure will be true
-
-
 
 async function run() {
   try {
@@ -52,7 +49,6 @@ async function run() {
     const foodsCollection = client.db("tasteMatrix").collection("foods");
     const jobsCollection = client.db("tasteMatrix").collection("jobs");
 
-
     //Get all jobs data from db
     app.get("/foods", async (req, res) => {
       const result = await foodsCollection.find().toArray();
@@ -60,7 +56,6 @@ async function run() {
       res.send(result);
     });
 
-  
     //get a single job data from db using job id
     app.get("/food/:id", async (req, res) => {
       const id = req.params.id;
@@ -69,7 +64,26 @@ async function run() {
       res.send(result);
     });
 
+    //Get all jobs data from db for pagination
+    app.get("/all-foods", async (req, res) => {
+      const size = parseInt(req.query.size);
+      const page = parseInt(req.query.page)-1;
+      console.log(page, size);
+      const result = await foodsCollection
+        .find()
+        .skip(page * size)
+        .limit(size)
+        .toArray();
 
+      res.send(result);
+    });
+
+    //Get all jobs data count from db
+    app.get("/foods-count", async (req, res) => {
+      const count = await foodsCollection.countDocuments();
+
+      res.send({ count });
+    });
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
