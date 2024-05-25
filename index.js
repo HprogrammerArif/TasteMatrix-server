@@ -49,10 +49,17 @@ async function run() {
     const foodsCollection = client.db("tasteMatrix").collection("foods");
     const jobsCollection = client.db("tasteMatrix").collection("jobs");
 
+    //add food items
+    app.post("/foods", async (req, res) => {
+      const foodItem = req.body;
+      const result = await foodsCollection.insertOne(foodItem);
+      res.send(result);
+    });
+
+
     //Get all jobs data from db
     app.get("/foods", async (req, res) => {
       const result = await foodsCollection.find().toArray();
-
       res.send(result);
     });
 
@@ -73,13 +80,12 @@ async function run() {
       const search = req.query.search;
       console.log(page, size);
 
-
       let query = {
-        food_name: { $regex: search, $options: 'i'},
+        food_name: { $regex: search, $options: "i" },
       };
 
       // if (filter) query = { food_category: filter };
-      if (filter) query.food_category =  filter;
+      if (filter) query.food_category = filter;
 
       let options = {};
       if (sort) options = { sort: { price: sort === "asc" ? 1 : -1 } };
@@ -93,19 +99,16 @@ async function run() {
       res.send(result);
     });
 
-
-
     //Get all jobs data count from db
     app.get("/foods-count", async (req, res) => {
       const filter = req.query.filter;
       const search = req.query.search;
-       let query = {
-        food_name: { $regex: search, $options: 'i'},
+      let query = {
+        food_name: { $regex: search, $options: "i" },
       };
-      
-      // if (filter) query = { food_category: filter };
-      if (filter) query.food_category =  filter;
 
+      // if (filter) query = { food_category: filter };
+      if (filter) query.food_category = filter;
 
       const count = await foodsCollection.countDocuments(query);
 
