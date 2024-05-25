@@ -49,12 +49,33 @@ async function run() {
     const foodsCollection = client.db("tasteMatrix").collection("foods");
     const jobsCollection = client.db("tasteMatrix").collection("jobs");
 
+
+
     //add food items
     app.post("/foods", async (req, res) => {
       const foodItem = req.body;
       const result = await foodsCollection.insertOne(foodItem);
       res.send(result);
     });
+
+
+    //get all food items posted by a specipic user base on email
+    app.get("/my-added-item/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = {'addedBy.userEmail': email}
+      const result = await foodsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // //get all jobs posted by a specipic user
+    // app.get("/jobs/:email", async (req, res) => {
+    //   const email = req.params.email;
+    //   const query = { "buyer.email": email };
+    //   const result = await jobsCollection.find(query).toArray();
+    //   res.send(result);
+    // });
+
+
 
 
     //Get all jobs data from db
