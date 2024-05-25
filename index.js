@@ -67,13 +67,21 @@ async function run() {
       res.send(result);
     });
 
-    // //get all jobs posted by a specipic user
-    // app.get("/jobs/:email", async (req, res) => {
-    //   const email = req.params.email;
-    //   const query = { "buyer.email": email };
-    //   const result = await jobsCollection.find(query).toArray();
-    //   res.send(result);
-    // });
+    
+    // update a food item in db
+    app.put("/foods/:id", async (req, res) => {
+      const id = req.params.id;
+      const foodData = req.body;
+      const query = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          ...foodData,
+        },
+      };
+      const result = await foodsCollection.updateOne(query, updateDoc, options);
+      res.send(result);
+    });
 
 
 
