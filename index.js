@@ -47,8 +47,34 @@ async function run() {
     // await client.connect();
 
     const foodsCollection = client.db("tasteMatrix").collection("foods");
-    const jobsCollection = client.db("tasteMatrix").collection("jobs");
+    const purchaseCollection = client.db("tasteMatrix").collection("purchases");
 
+
+
+    // save a purchase data in db
+    app.post("/purchase", async (req, res) => {
+      const purchaseData = req.body;
+      const result = await purchaseCollection.insertOne(purchaseData);
+      res.send(result);
+    });
+
+
+    // get all purchase order for a user by email from db
+    app.get('/my-order/:email', async (req, res) => {
+      const userEmail = req.params.email
+      const query = {userEmail}
+      const result = await purchaseCollection.find(query).toArray()
+      res.send(result)
+ })
+
+
+  //delete a order data from db
+  app.delete("/delete-item/:id", async (req, res) => {
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id) };
+    const result = await purchaseCollection.deleteOne(query);
+    res.send(result);
+  });
 
 
     //add food items
