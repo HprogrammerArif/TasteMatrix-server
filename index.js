@@ -103,7 +103,18 @@ async function run() {
     // save a purchase data in db
     app.post("/purchase", async (req, res) => {
       const purchaseData = req.body;
+      console.log(purchaseData);
       const result = await purchaseCollection.insertOne(purchaseData);
+
+      //update purchase count in foods collection
+      const updateDoc = {
+        $inc: { purchase_count: 1 },
+      };
+      const foodQuery = { _id: new ObjectId(purchaseData.id) };
+      const updatePuchaseCount = await foodsCollection.updateOne(
+        foodQuery,
+        updateDoc
+      );
       res.send(result);
     });
 
@@ -116,7 +127,7 @@ async function run() {
       }
 
       const userEmail = req.params.email;
-      console.log('usr email',userEmail);
+      console.log("usr email", userEmail);
       const query = { userEmail };
       const result = await purchaseCollection.find(query).toArray();
       res.send(result);
@@ -139,11 +150,10 @@ async function run() {
 
     //get all food items posted by a specipic user base on email
     app.get("/my-added-item/:email", logger, verifyToken, async (req, res) => {
-      
       if (req.params.email !== req.user.email) {
         return res.status(403).send({ message: "forbidden access" });
       }
-      
+
       const email = req.params.email;
       const query = { "addedBy.userEmail": email };
       const result = await foodsCollection.find(query).toArray();
@@ -165,11 +175,20 @@ async function run() {
       res.send(result);
     });
 
+    
     //Get all jobs data from db
     app.get("/foods", async (req, res) => {
-      const result = await foodsCollection.find().toArray();
-      res.send(result);
+      try {
+        const options = { sort: { purchase_count: -1 } }; // Use -1 for descending order
+    
+        const result = await foodsCollection.find({}, options).limit(6).toArray();
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("Internal Server Error");
+      }
     });
+
 
     //get a single job data from db using job id
     app.get("/food/:id", async (req, res) => {
