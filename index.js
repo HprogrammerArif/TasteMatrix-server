@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 9000;
 
@@ -18,6 +20,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 
 //tasteMatrix
 //jflpgQ2l5tTekptw
@@ -32,6 +35,31 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+//middlewares
+const logger = async (req, res, next) => {
+  console.log("called", req.host, req.originalUrl);
+  next();
+};
+
+const verifyToken = async (req, res, next) => {
+  const token = req.cookies?.token;
+  //console.log("value of token in middleware", token);
+  if (!token) {
+    return res.status(401).send({ message: "Not Authorized" });
+  }
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    //errror
+    if (err) {
+      return res.status(401).send({ message: "unauthorized" });
+    }
+    //if token is valid then it would be decoded
+    // console.log("value in the token", decoded);
+    req.user = decoded;
+    next();
+  });
+};
 
 const cookieOptions = {
   httpOnly: true,
@@ -49,7 +77,28 @@ async function run() {
     const foodsCollection = client.db("tasteMatrix").collection("foods");
     const purchaseCollection = client.db("tasteMatrix").collection("purchases");
 
+    //auth releted api
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      console.log("user for token", user);
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
 
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+        })
+        .send({ success: true });
+    });
+
+    app.post("/logout", async (req, res) => {
+      const user = req.body;
+      console.log("loggin out", user);
+      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
 
     // save a purchase data in db
     app.post("/purchase", async (req, res) => {
@@ -58,24 +107,28 @@ async function run() {
       res.send(result);
     });
 
-
     // get all purchase order for a user by email from db
-    app.get('/my-order/:email', async (req, res) => {
-      const userEmail = req.params.email
-      const query = {userEmail}
-      const result = await purchaseCollection.find(query).toArray()
-      res.send(result)
- })
+    app.get("/my-order/:email", logger, verifyToken, async (req, res) => {
+      console.log("token owneer info", req.user);
 
+      if (req.params.email !== req.user.email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
 
-  //delete a order data from db
-  app.delete("/delete-item/:id", async (req, res) => {
-    const id = req.params.id;
-    const query = { _id: new ObjectId(id) };
-    const result = await purchaseCollection.deleteOne(query);
-    res.send(result);
-  });
+      const userEmail = req.params.email;
+      console.log('usr email',userEmail);
+      const query = { userEmail };
+      const result = await purchaseCollection.find(query).toArray();
+      res.send(result);
+    });
 
+    //delete a order data from db
+    app.delete("/delete-item/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await purchaseCollection.deleteOne(query);
+      res.send(result);
+    });
 
     //add food items
     app.post("/foods", async (req, res) => {
@@ -84,16 +137,19 @@ async function run() {
       res.send(result);
     });
 
-
     //get all food items posted by a specipic user base on email
-    app.get("/my-added-item/:email", async (req, res) => {
+    app.get("/my-added-item/:email", logger, verifyToken, async (req, res) => {
+      
+      if (req.params.email !== req.user.email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      
       const email = req.params.email;
-      const query = {'addedBy.userEmail': email}
+      const query = { "addedBy.userEmail": email };
       const result = await foodsCollection.find(query).toArray();
       res.send(result);
     });
 
-    
     // update a food item in db
     app.put("/foods/:id", async (req, res) => {
       const id = req.params.id;
@@ -108,9 +164,6 @@ async function run() {
       const result = await foodsCollection.updateOne(query, updateDoc, options);
       res.send(result);
     });
-
-
-
 
     //Get all jobs data from db
     app.get("/foods", async (req, res) => {
